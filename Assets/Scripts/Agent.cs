@@ -6,6 +6,8 @@ using UnityEngine.AI;
 
 public class Agent : MonoBehaviour
 {
+    public const float DESIRED_VELOCITY = 1f;
+
     public float radius;
     public float mass;
     public float perceptionRadius;
@@ -39,6 +41,7 @@ public class Agent : MonoBehaviour
 
             if (path.Count == 0)
             {
+                perceivedNeighbors.Clear();
                 gameObject.SetActive(false);
                 AgentManager.RemoveAgent(gameObject);
             }
@@ -58,7 +61,7 @@ public class Agent : MonoBehaviour
             }
         }
 
-        if (false)
+        if (true)
         {
             foreach (var neighbor in perceivedNeighbors)
             {
@@ -80,6 +83,7 @@ public class Agent : MonoBehaviour
         //path = new List<Vector3>() { destination };
         //nma.SetDestination(destination);
         nma.enabled = false;
+
     }
 
     public Vector3 GetVelocity()
@@ -95,6 +99,9 @@ public class Agent : MonoBehaviour
     {
         var force = Vector3.zero;
 
+        force += CalculateGoalForce();
+        force += CalculateAgentForce();
+
         if (force != Vector3.zero)
         {
             return force.normalized * Mathf.Min(force.magnitude, Parameters.maxSpeed);
@@ -106,12 +113,32 @@ public class Agent : MonoBehaviour
     
     private Vector3 CalculateGoalForce()
     {
-        return Vector3.zero;
+        Vector3 velocity = GetVelocity();
+        Vector3 direction = (path[0] - transform.position).normalized;
+
+        Vector3 force = mass*(DESIRED_VELOCITY*direction-velocity);
+
+        return force;
     }
 
     private Vector3 CalculateAgentForce()
     {
-        return Vector3.zero;
+        Vector3 force = Vector3.zero;
+
+        //Remove inactive agents
+        int count = perceivedNeighbors.RemoveWhere(g => !g.activeSelf);
+        if(count > 0){
+            print("Removed " + count + " agents\n");
+        }
+
+        foreach(var agent in perceivedNeighbors){
+            float distance = -Vector3.Distance(transform.position, agent.transform.position);
+            Vector3 direction = transform.position - agent.transform.position;
+
+            force += Mathf.Exp(distance)*direction.normalized;
+        }
+
+        return force;
     }
 
     private Vector3 CalculateWallForce()
@@ -129,12 +156,12 @@ public class Agent : MonoBehaviour
 
     public void OnTriggerEnter(Collider other)
     {
-
+        perceivedNeighbors.Add(other.gameObject);
     }
     
     public void OnTriggerExit(Collider other)
     {
-
+        perceivedNeighbors.Remove(other.gameObject);
     }
 
     public void OnCollisionEnter(Collision collision)
