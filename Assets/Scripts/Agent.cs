@@ -102,6 +102,8 @@ public class Agent : MonoBehaviour
         force += CalculateGoalForce();
         force += CalculateAgentForce();
 
+        //force += CalculateLeaderForce();
+
         if (force != Vector3.zero)
         {
             return force.normalized * Mathf.Min(force.magnitude, Parameters.maxSpeed);
@@ -145,6 +147,39 @@ public class Agent : MonoBehaviour
     {
         return Vector3.zero;
     }
+
+    #region Single-Agent Behaviors
+
+    #endregion
+
+    #region Group Behaviors
+
+    public Agent leader;
+    bool hasLeader;
+
+    public void setLeader(Agent a) {
+        hasLeader = true;
+        leader = a;
+    }
+    public void removeLeader(Agent a) {
+        hasLeader = false;
+    }
+    private Vector3 CalculateLeaderForce() {
+        if(!hasLeader) {
+            return Vector3.zero;
+        }
+        
+        Vector3 direction = transform.position - leader.transform.position;
+
+
+        //the strength of the force, we want it to be just a component of the force
+        //so the agents slowly converge towards the leader while maintaining some level of autonomy
+        float forceStrength = 0.1f;
+
+        return direction.normalized * forceStrength;
+    }
+
+    #endregion
 
     public void ApplyForce()
     {
