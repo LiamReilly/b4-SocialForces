@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -18,6 +19,8 @@ public class Agent : MonoBehaviour
     private Vector3 WallForce = Vector3.zero;
 
     private HashSet<GameObject> perceivedNeighbors = new HashSet<GameObject>();
+
+    private bool viewpath = false, viewneighbors = true;
 
     void Start()
     {
@@ -50,7 +53,7 @@ public class Agent : MonoBehaviour
 
         #region Visualization
 
-        if (false)
+        if (viewpath)
         {
             if (path.Count > 0)
             {
@@ -62,7 +65,7 @@ public class Agent : MonoBehaviour
             }
         }
 
-        if (true)
+        if (viewneighbors)
         {
             foreach (var neighbor in perceivedNeighbors)
             {
@@ -100,11 +103,13 @@ public class Agent : MonoBehaviour
     {
         var force = Vector3.zero;
 
-        force += CalculateGoalForce();
+        //force += CalculateGoalForce();
         force += CalculateAgentForce();
-        force += WallForce*25f;
+        //force += WallForce*25f;
 
+        force += CalculateWallFollowForce();
         //force += CalculateLeaderForce();
+
         WallForce = Vector3.zero;
         if (force != Vector3.zero)
         {
@@ -167,34 +172,91 @@ public class Agent : MonoBehaviour
 
     #region Single-Agent Behaviors
 
+        //saves the location of the last wall the agent has collided with
+        GameObject lastCollidedWall = null;
+
+        private Vector3 CalculateWallFollowForce() {
+            if(lastCollidedWall == null) {
+                return Vector3.zero;
+            }
+
+            Vector3 separation = transform.position - lastCollidedWall.transform.position, direction = new Vector3(0,0,0);
+
+            /*determine result direction based on separation direction, clockwise result
+            imagine a square split into 4 based on diagonals.
+            
+              \  up  /
+               \ -> /
+              ^ \  /
+              |  \/ right
+            left /\   |
+                /  \  V
+               / <- \
+              / down \
+
+            up:     (1,0,0)     z > |x|
+            right:  (0,0,-1)    x > |z|
+            down:   (-1,0,0)    z < -|x|
+            left:   (0,0,1)     x < -|z|
+            */
+
+            if(separation.z >= Math.Abs(separation.x)) {
+                direction.x = 1;
+            }
+            else if(separation.x > Math.Abs(separation.z)) {
+                direction.z = -1;
+            }
+            else if(separation.z < -1*Math.Abs(separation.x)) {
+                direction.x = -1;
+            }
+            else if(separation.x < -1*Math.Abs(separation.z)) {
+                direction.z = 1;
+            }
+
+
+            //needs to be checked
+            float magnitude = 0.1f;
+
+            Debug.DrawLine(transform.position, lastCollidedWall.transform.position, Color.red);
+            Debug.DrawLine(transform.position, transform.position+direction*5, Color.green);
+            
+            if(separation.magnitude > 2) {
+                lastCollidedWall = null;
+            }
+
+            return direction*magnitude;
+        }
+
     #endregion
 
     #region Group Behaviors
 
-    public Agent leader;
-    bool hasLeader;
+        #region Leader Force
+        public Agent leader;
+        bool hasLeader;
 
-    public void setLeader(Agent a) {
-        hasLeader = true;
-        leader = a;
-    }
-    public void removeLeader(Agent a) {
-        hasLeader = false;
-    }
-    private Vector3 CalculateLeaderForce() {
-        if(!hasLeader) {
-            return Vector3.zero;
+        public void setLeader(Agent a) {
+            hasLeader = true;
+            leader = a;
         }
-        
-        Vector3 direction = transform.position - leader.transform.position;
+        public void removeLeader(Agent a) {
+            hasLeader = false;
+        }
+        private Vector3 CalculateLeaderForce() {
+            if(!hasLeader) {
+                return Vector3.zero;
+            }
+            
+            Vector3 direction = transform.position - leader.transform.position;
 
 
-        //the strength of the force, we want it to be just a component of the force
-        //so the agents slowly converge towards the leader while maintaining some level of autonomy
-        float forceStrength = 0.1f;
+            //the strength of the force, we want it to be just a component of the force
+            //so the agents slowly converge towards the leader while maintaining some level of autonomy
+            float forceStrength = 0.1f;
 
-        return direction.normalized * forceStrength;
-    }
+            return direction.normalized * Parameters.maxSpeed * forceStrength;
+        }
+        #endregion
 
     #endregion
 
@@ -226,6 +288,8 @@ public class Agent : MonoBehaviour
     {
         if(WallManager.IsWall(collision.gameObject))
         {
+            lastCollidedWall = collision.gameObject;
+
             CalculateWallForce(collision);
             //print(WallForce);
         }
