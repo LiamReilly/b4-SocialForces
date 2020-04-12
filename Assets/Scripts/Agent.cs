@@ -15,6 +15,7 @@ public class Agent : MonoBehaviour
     private List<Vector3> path;
     private NavMeshAgent nma;
     private Rigidbody rb;
+    private Vector3 WallForce = Vector3.zero;
 
     private HashSet<GameObject> perceivedNeighbors = new HashSet<GameObject>();
 
@@ -101,9 +102,10 @@ public class Agent : MonoBehaviour
 
         force += CalculateGoalForce();
         force += CalculateAgentForce();
+        force += WallForce*25f;
 
         //force += CalculateLeaderForce();
-
+        WallForce = Vector3.zero;
         if (force != Vector3.zero)
         {
             return force.normalized * Mathf.Min(force.magnitude, Parameters.maxSpeed);
@@ -111,6 +113,7 @@ public class Agent : MonoBehaviour
         {
             return Vector3.zero;
         }
+        
     }
     
     private Vector3 CalculateGoalForce()
@@ -136,16 +139,30 @@ public class Agent : MonoBehaviour
         foreach(var agent in perceivedNeighbors){
             float distance = -Vector3.Distance(transform.position, agent.transform.position);
             Vector3 direction = transform.position - agent.transform.position;
-
             force += Mathf.Exp(distance)*direction.normalized;
+
+            //sliding friction force
+            float Agentradii = agent.gameObject.GetComponent<Agent>().radius + radius;
+            float AgentOverLap = Agentradii - Vector3.Distance(transform.position, agent.transform.position);
+            Vector3 tang = Vector3.Cross(Vector3.up, direction.normalized);
+            if (AgentOverLap < 0)
+            {
+                AgentOverLap = 0;
+            }
+            force += AgentOverLap * Parameters.Kappa * Vector3.Dot(rb.velocity - agent.gameObject.GetComponent<Rigidbody>().velocity, tang) * tang;
+
         }
 
         return force;
     }
-
-    private Vector3 CalculateWallForce()
+    
+    private void CalculateWallForce(Collision collision)
     {
-        return Vector3.zero;
+        Vector3 force = Vector3.zero;
+        Vector3 direction = -(collision.contacts[0].point - transform.position).normalized;
+        //Debug.DrawLine(collision.transform.position, transform.position, Color.magenta);
+        WallForce += direction;
+        return;
     }
 
     #region Single-Agent Behaviors
@@ -191,17 +208,27 @@ public class Agent : MonoBehaviour
 
     public void OnTriggerEnter(Collider other)
     {
-        perceivedNeighbors.Add(other.gameObject);
+        if (AgentManager.IsAgent(other.gameObject))
+        {
+            perceivedNeighbors.Add(other.gameObject);
+        }
     }
     
     public void OnTriggerExit(Collider other)
     {
-        perceivedNeighbors.Remove(other.gameObject);
+        if (perceivedNeighbors.Contains(other.gameObject))
+        {
+            perceivedNeighbors.Remove(other.gameObject);
+        }
     }
 
     public void OnCollisionEnter(Collision collision)
     {
-        
+        if(WallManager.IsWall(collision.gameObject))
+        {
+            CalculateWallForce(collision);
+            //print(WallForce);
+        }
     }
 
     public void OnCollisionExit(Collision collision)

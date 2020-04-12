@@ -18,10 +18,13 @@ public class AgentManager : MonoBehaviour
     public const float UPDATE_RATE = 0.0f;
     private const int PATHFINDING_FRAME_SKIP = 25;
 
+    public static AgentManager instance;
+
     #region Unity Functions
 
     void Awake()
     {
+        instance = this;
         Random.InitState(0);
 
         agentParent = GameObject.Find("Agents");

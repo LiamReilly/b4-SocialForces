@@ -12,8 +12,12 @@ public class WallManager : MonoBehaviour
     private GameObject wallParent;
     private static HashSet<GameObject> wallObjs = new HashSet<GameObject>();
 
+    public static WallManager instance;
+
+
     void Start()
     {
+        instance = this;
         Random.InitState(0);
 
         wallParent = GameObject.Find("Walls");
@@ -32,6 +36,35 @@ public class WallManager : MonoBehaviour
                     wallObjs.Add(wall);
                 }
             }
+        /*for (int i = -Mathf.RoundToInt(wallSpawnRadius / 2); i < wallSpawnRadius / 2; i++)
+        {
+            foreach (var j in new[] { -Mathf.RoundToInt(wallSpawnRadius / 2) - 1, wallSpawnRadius / 2 })
+            {
+                GameObject wall = null;
+                wall = Instantiate(wallPrefab, new Vector3(i + 0.5f, 0.5f, j + 0.5f), Quaternion.identity);
+                wall.name = "Wall " + i;
+                wall.transform.parent = wallParent.transform;
+                var wallScript = wall.GetComponent<Agent>();
+
+                walls.Add(wallScript);
+                wallObjs.Add(wall);
+            }
+        }
+        for (int j = -Mathf.RoundToInt(wallSpawnRadius / 2); j < wallSpawnRadius / 2; j++)
+        {
+            foreach (var i in new[] { -Mathf.RoundToInt(wallSpawnRadius / 2) - 1, wallSpawnRadius / 2 })
+            {
+                GameObject wall = null;
+                wall = Instantiate(wallPrefab, new Vector3(i + 0.5f, 0.5f, j + 0.5f), Quaternion.identity);
+                wall.name = "Wall " + i;
+                wall.transform.parent = wallParent.transform;
+                var wallScript = wall.GetComponent<Agent>();
+
+                walls.Add(wallScript);
+                wallObjs.Add(wall);
+            }
+        }*/
+
     }
 
     void Update()
