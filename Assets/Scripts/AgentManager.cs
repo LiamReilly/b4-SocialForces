@@ -17,6 +17,7 @@ public class AgentManager : MonoBehaviour
 
     public const float UPDATE_RATE = 0.0f;
     private const int PATHFINDING_FRAME_SKIP = 25;
+    private const float MASS = 80f;
 
     public static AgentManager instance;
 
@@ -41,7 +42,7 @@ public class AgentManager : MonoBehaviour
             agent.transform.parent = agentParent.transform;
             var agentScript = agent.GetComponent<Agent>();
             agentScript.radius = 0.3f;// Random.Range(0.2f, 0.6f);
-            agentScript.mass = 1;
+            agentScript.mass = MASS;
             agentScript.perceptionRadius = 3;
 
             agents.Add(agentScript);

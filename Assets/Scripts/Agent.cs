@@ -7,7 +7,7 @@ using UnityEngine.AI;
 
 public class Agent : MonoBehaviour
 {
-    public const float DESIRED_VELOCITY = 1f;
+    public const float DESIRED_VELOCITY = 5f;
 
     public float radius;
     public float mass;
@@ -103,9 +103,9 @@ public class Agent : MonoBehaviour
     {
         var force = Vector3.zero;
 
-        //force += CalculateGoalForce();
+        // force += CalculateGoalForce();
         force += CalculateAgentForce();
-        //force += WallForce*25f;
+        // force += WallForce*25f;
 
         force += CalculateWallFollowForce();
         //force += CalculateLeaderForce();
@@ -137,24 +137,26 @@ public class Agent : MonoBehaviour
 
         //Remove inactive agents
         int count = perceivedNeighbors.RemoveWhere(g => !g.activeSelf);
-        if(count > 0){
-            print("Removed " + count + " agents\n");
-        }
+        // if(count > 0){
+        //     print("Removed " + count + " agents\n");
+        // }
 
         foreach(var agent in perceivedNeighbors){
             float distance = -Vector3.Distance(transform.position, agent.transform.position);
-            Vector3 direction = transform.position - agent.transform.position;
-            force += Mathf.Exp(distance)*direction.normalized;
+            Vector3 direction = (transform.position - agent.transform.position).normalized;
+
+            float agentRadii = agent.gameObject.GetComponent<Agent>().radius + radius;
+            float agentOverLap = Math.Max(agentRadii - Vector3.Distance(transform.position, agent.transform.position), 0);
+
+            //Psychological force
+            force += Parameters.A * Mathf.Exp(distance / Parameters.B) * direction;
+
+            //Non-Penetration force
+            force += agentOverLap * Parameters.k * distance *direction;
 
             //sliding friction force
-            float Agentradii = agent.gameObject.GetComponent<Agent>().radius + radius;
-            float AgentOverLap = Agentradii - Vector3.Distance(transform.position, agent.transform.position);
-            Vector3 tang = Vector3.Cross(Vector3.up, direction.normalized);
-            if (AgentOverLap < 0)
-            {
-                AgentOverLap = 0;
-            }
-            force += AgentOverLap * Parameters.Kappa * Vector3.Dot(rb.velocity - agent.gameObject.GetComponent<Rigidbody>().velocity, tang) * tang;
+            Vector3 tang = Vector3.Cross(Vector3.up, direction);
+            force += agentOverLap * Parameters.Kappa * Vector3.Dot(rb.velocity - agent.gameObject.GetComponent<Rigidbody>().velocity, tang) * tang;
 
         }
 
@@ -224,7 +226,7 @@ public class Agent : MonoBehaviour
                 lastCollidedWall = null;
             }
 
-            return direction*magnitude;
+            return direction*magnitude*mass;
         }
 
     #endregion
