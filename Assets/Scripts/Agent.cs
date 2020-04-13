@@ -107,9 +107,9 @@ public class Agent : MonoBehaviour
         force += CalculateAgentForce();
         force += WallForce*25f;
 
-        // force += CalculateWallFollowForce();
+        force += CalculateWallFollowForce();
         // force += CalculateLeaderForce();
-        force += CalculateSpiralForce();
+        //force += CalculateSpiralForce();
 
         WallForce = Vector3.zero;
         if (force != Vector3.zero)
@@ -176,6 +176,50 @@ public class Agent : MonoBehaviour
         return;
     }
 
+    public void ApplyForce()
+    {
+        var force = ComputeForce();
+        force.y = 0;
+
+        rb.AddForce(force * 10, ForceMode.Force);
+    }
+
+    public void OnTriggerEnter(Collider other)
+    {
+        if (AgentManager.IsAgent(other.gameObject))
+        {
+            perceivedNeighbors.Add(other.gameObject);
+        }
+    }
+    
+    public void OnTriggerExit(Collider other)
+    {
+        if (perceivedNeighbors.Contains(other.gameObject))
+        {
+            perceivedNeighbors.Remove(other.gameObject);
+        }
+    }
+
+    public void OnCollisionEnter(Collision collision)
+    {
+        if(collision.gameObject.tag == "wall") {
+            lastCollidedWall = collision.gameObject;
+        }
+
+        if(WallManager.IsWall(collision.gameObject))
+        {
+            //lastCollidedWall = collision.gameObject;
+
+            CalculateWallForce(collision);
+            //print(WallForce);
+        }
+    }
+
+    public void OnCollisionExit(Collision collision)
+    {
+        
+    }
+
     #endregion
 
     #region Part 2
@@ -184,6 +228,7 @@ public class Agent : MonoBehaviour
 
         //saves the location of the last wall the agent has collided with
         GameObject lastCollidedWall = null;
+        float maxWallDist;
 
         private Vector3 CalculateWallFollowForce() {
             if(lastCollidedWall == null) {
@@ -210,51 +255,56 @@ public class Agent : MonoBehaviour
             left:   (0,0,1)     x < -|z|
 
             added parameters for inward and forward force (vector is normalized later anyway)
-             - inward force helps agents stick on walls
+             - [discontinued, now use constant force towards center] inward force helps agents stick on walls
              - forward force is what makes them crawl
+
             */
 
-            /*
-            Getting the forces in the right balance seems hard, will test out the distance-based approach
-            used in leader following.
+            int inwardF = 0, forwardF = 2;
 
-            more inward force when far, more outward force when near
-            
+            //adjust for rectangular (instead of square/cube) walls
+            float x = separation.x * lastCollidedWall.transform.localScale.z;
+            float z = separation.z * lastCollidedWall.transform.localScale.x;
 
-            float dist = Math.Abs(separation.magnitude);
-            float forceMult = -1 / 2*(dist-3) + 2;
 
-            int inwardF = (int)(100*forceMult), forwardF = (int)(100*(2-forceMult));
-            */
 
-            int inwardF = 1, forwardF = 2;
-
-            if(separation.z >= Math.Abs(separation.x)) {
+            if(z >= Math.Abs(x)) {
                 direction = new Vector3(forwardF,0,-1*inwardF);
             }
-            else if(separation.x > Math.Abs(separation.z)) {
+            else if(x > Math.Abs(z)) {
                 direction = new Vector3(-1*inwardF,0,-1*forwardF);
             }
-            else if(separation.z < -1*Math.Abs(separation.x)) {
+            else if(z < -1*Math.Abs(x)) {
                 direction = new Vector3(-1*forwardF,0,inwardF);
             }
-            else if(separation.x < -1*Math.Abs(separation.z)) {
+            else if(x < -1*Math.Abs(z)) {
                 direction = new Vector3(inwardF,0,forwardF);
             }
 
             direction = direction.normalized;
 
-            //needs to be checked
-            float magnitude = 0.1f;
-
-            Debug.DrawLine(transform.position, lastCollidedWall.transform.position, Color.red);
-            Debug.DrawLine(transform.position, transform.position+direction*5, Color.green);
             
-            if(separation.magnitude > 2) {
-                lastCollidedWall = null;
+            //don't apply force if already moving in the right direction
+            float directionalVelocity = Vector3.Dot(rb.velocity, direction);
+            if(directionalVelocity > 0.6f) {
+                direction = Vector3.zero;
             }
 
-            return direction*magnitude*mass;
+            //add inward force
+            Vector3 inF = separation.normalized * -0.09f;
+
+            //full inward force should be applied at a little past the corner
+            //corner is distance sqrt((x scale/2)^2 + (z scale/2)^2)+radius, more or less
+            //we don't need to be exact here, so using squares should suffice?
+            //inF *= separation.magnitude
+
+            
+            Vector3 finalForce = direction+inF;
+            
+            Debug.DrawLine(transform.position, lastCollidedWall.transform.position, Color.red);
+            Debug.DrawLine(transform.position, transform.position+finalForce*5, Color.green);
+
+            return mass*(finalForce + inF);
         }
 
 
@@ -326,45 +376,7 @@ public class Agent : MonoBehaviour
 
     #endregion
 
-    public void ApplyForce()
-    {
-        var force = ComputeForce();
-        force.y = 0;
-
-        rb.AddForce(force * 10, ForceMode.Force);
-    }
-
-    public void OnTriggerEnter(Collider other)
-    {
-        if (AgentManager.IsAgent(other.gameObject))
-        {
-            perceivedNeighbors.Add(other.gameObject);
-        }
-    }
     
-    public void OnTriggerExit(Collider other)
-    {
-        if (perceivedNeighbors.Contains(other.gameObject))
-        {
-            perceivedNeighbors.Remove(other.gameObject);
-        }
-    }
-
-    public void OnCollisionEnter(Collision collision)
-    {
-        if(WallManager.IsWall(collision.gameObject))
-        {
-            lastCollidedWall = collision.gameObject;
-
-            CalculateWallForce(collision);
-            //print(WallForce);
-        }
-    }
-
-    public void OnCollisionExit(Collision collision)
-    {
-        
-    }
 
     #endregion
 }
