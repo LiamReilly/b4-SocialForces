@@ -105,10 +105,11 @@ public class Agent : MonoBehaviour
 
         // force += CalculateGoalForce();
         force += CalculateAgentForce();
-        // force += WallForce*25f;
+        force += WallForce*25f;
 
-        force += CalculateWallFollowForce();
-        //force += CalculateLeaderForce();
+        // force += CalculateWallFollowForce();
+        // force += CalculateLeaderForce();
+        force += CalculateSpiralForce();
 
         WallForce = Vector3.zero;
         if (force != Vector3.zero)
@@ -227,6 +228,20 @@ public class Agent : MonoBehaviour
             }
 
             return direction*magnitude*mass;
+        }
+
+
+        private Vector3 CalculateSpiralForce(){
+            Vector3 toCenter = Vector3.zero - new Vector3(transform.position.x, 0, transform.position.z);
+            Vector3 tang = Vector3.Cross(toCenter, Vector3.up);
+
+            Vector3 newForce = tang;
+            newForce += toCenter;
+
+            Debug.DrawLine(transform.position, transform.position+tang, Color.magenta);
+            Debug.DrawLine(transform.position, transform.position+toCenter, Color.green);
+
+            return newForce * mass;
         }
 
     #endregion
