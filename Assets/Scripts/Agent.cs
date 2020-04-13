@@ -97,7 +97,7 @@ public class Agent : MonoBehaviour
 
     #endregion
 
-    #region Incomplete Functions
+    #region Part 1
 
     private Vector3 ComputeForce()
     {
@@ -169,9 +169,16 @@ public class Agent : MonoBehaviour
         Vector3 force = Vector3.zero;
         Vector3 direction = -(collision.contacts[0].point - transform.position).normalized;
         //Debug.DrawLine(collision.transform.position, transform.position, Color.magenta);
-        WallForce += direction;
+        
+        float magnitude = 1.0f;
+
+        WallForce += direction*magnitude*mass;
         return;
     }
+
+    #endregion
+
+    #region Part 2
 
     #region Single-Agent Behaviors
 
@@ -201,21 +208,41 @@ public class Agent : MonoBehaviour
             right:  (0,0,-1)    x > |z|
             down:   (-1,0,0)    z < -|x|
             left:   (0,0,1)     x < -|z|
+
+            added parameters for inward and forward force (vector is normalized later anyway)
+             - inward force helps agents stick on walls
+             - forward force is what makes them crawl
             */
 
+            /*
+            Getting the forces in the right balance seems hard, will test out the distance-based approach
+            used in leader following.
+
+            more inward force when far, more outward force when near
+            
+
+            float dist = Math.Abs(separation.magnitude);
+            float forceMult = -1 / 2*(dist-3) + 2;
+
+            int inwardF = (int)(100*forceMult), forwardF = (int)(100*(2-forceMult));
+            */
+
+            int inwardF = 1, forwardF = 2;
+
             if(separation.z >= Math.Abs(separation.x)) {
-                direction.x = 1;
+                direction = new Vector3(forwardF,0,-1*inwardF);
             }
             else if(separation.x > Math.Abs(separation.z)) {
-                direction.z = -1;
+                direction = new Vector3(-1*inwardF,0,-1*forwardF);
             }
             else if(separation.z < -1*Math.Abs(separation.x)) {
-                direction.x = -1;
+                direction = new Vector3(-1*forwardF,0,inwardF);
             }
             else if(separation.x < -1*Math.Abs(separation.z)) {
-                direction.z = 1;
+                direction = new Vector3(inwardF,0,forwardF);
             }
 
+            direction = direction.normalized;
 
             //needs to be checked
             float magnitude = 0.1f;
@@ -248,7 +275,11 @@ public class Agent : MonoBehaviour
 
     #region Group Behaviors
 
-        #region Leader Force
+        #region Crowd Following
+
+        #endregion
+
+        #region Leader Following
         public Agent leader;
         bool hasLeader;
 
@@ -264,14 +295,32 @@ public class Agent : MonoBehaviour
                 return Vector3.zero;
             }
             
-            Vector3 direction = transform.position - leader.transform.position;
+            Vector3 posDif = transform.position - leader.transform.position;
 
 
-            //the strength of the force, we want it to be just a component of the force
-            //so the agents slowly converge towards the leader while maintaining some level of autonomy
-            float forceStrength = 0.1f;
+            /*
+            want a vaguely logarithmic-shaped curve:
+                when close to the leader, we want to move out of the way
+                when far from the leader, we want to move closer
+            
+            approximation will use the properties of xy = c: asymptotic stuff
+                we'd like to use the 4-th quadrant portion of xy = -1
+                x: distance
+                y: velocity
 
-            return direction.normalized * Parameters.maxSpeed * forceStrength;
+            we want to move the graph up so we get a y-intercept and our agents don't fly away from the leader at the speed of sound
+                say we want to have a force of 1 away when just about touching
+                similarly, say we want to have an asymptotic force of about 1
+
+            more or less what we want: 
+                y = -2/(x+1) + 1
+
+            */
+
+            float dist = Math.Abs(posDif.magnitude) - radius - leader.radius;
+            float forceMult = -2 / dist + 1;
+
+            return posDif.normalized * mass * forceMult;
         }
         #endregion
 
