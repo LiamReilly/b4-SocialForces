@@ -291,15 +291,14 @@ public class Agent : MonoBehaviour
             }
 
             //add inward force
-            Vector3 inF = separation.normalized * -0.09f;
+            Vector3 inF = separation.normalized * -0.1f;
 
-            //full inward force should be applied at a little past the corner
-            //corner is distance sqrt((x scale/2)^2 + (z scale/2)^2)+radius, more or less
-            //we don't need to be exact here, so using squares should suffice?
-            //inF *= separation.magnitude
-
-            
-            Vector3 finalForce = direction+inF;
+            //don not add inward force if velocity is stopped.
+            Vector3 finalForce = direction;
+            if(rb.velocity.magnitude > 0.01f)
+                finalForce += inF;
+            else
+                finalForce = -10*inF;
             
             Debug.DrawLine(transform.position, lastCollidedWall.transform.position, Color.red);
             Debug.DrawLine(transform.position, transform.position+finalForce*5, Color.green);
@@ -326,6 +325,22 @@ public class Agent : MonoBehaviour
     #region Group Behaviors
 
         #region Crowd Following
+
+        private Vector3 CalculateCrowdForce() {
+            //luckily we have the perceivedNeighbors set, so this is really easy.
+            //we'll literally just sum all the velocities including ours, and then divide by .Count + 1
+            
+            Vector3 sumVelocity = rb.velocity;
+            foreach(GameObject agent in perceivedNeighbors) {
+                
+                sumVelocity += agent.GetComponent<Rigidbody>().velocity;
+
+            }
+
+            Vector3 desiredVelocity = sumVelocity / (perceivedNeighbors.Count + 1);
+            
+            return mass * (desiredVelocity - rb.velocity);
+        }
 
         #endregion
 
