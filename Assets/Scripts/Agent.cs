@@ -20,7 +20,7 @@ public class Agent : MonoBehaviour
 
     private HashSet<GameObject> perceivedNeighbors = new HashSet<GameObject>();
 
-    private bool viewpath = false, viewneighbors = true;
+    private bool viewpath = false, viewneighbors = true, viewwall = false;
 
     void Start()
     {
@@ -36,6 +36,15 @@ public class Agent : MonoBehaviour
 
     private void Update()
     {
+        if(isLeader) {
+            float horiz = Input.GetAxis("Horizontal");
+            float vert = Input.GetAxis("Vertical");
+
+            Vector3 move = new Vector3(horiz, 0.0f, vert);
+
+            rb.AddForce(move * 100);
+        }
+
         if (path.Count > 1 && Vector3.Distance(transform.position, path[0]) < 1.1f)
         {
             path.RemoveAt(0);
@@ -103,12 +112,17 @@ public class Agent : MonoBehaviour
     {
         var force = Vector3.zero;
 
-        // force += CalculateGoalForce();
+        //force += CalculateGoalForce();
         force += CalculateAgentForce();
-        force += WallForce*25f;
+        //force += WallForce*25f;
 
-        force += CalculateWallFollowForce();
-        // force += CalculateLeaderForce();
+        //force += CalculateWallFollowForce();
+
+        if(hasLeader) {
+            force += CalculateLeaderForce();
+        }
+        
+        
         //force += CalculateSpiralForce();
 
         WallForce = Vector3.zero;
@@ -300,8 +314,10 @@ public class Agent : MonoBehaviour
             else
                 finalForce = -10*inF;
             
-            Debug.DrawLine(transform.position, lastCollidedWall.transform.position, Color.red);
-            Debug.DrawLine(transform.position, transform.position+finalForce*5, Color.green);
+            if(viewwall) {
+                Debug.DrawLine(transform.position, lastCollidedWall.transform.position, Color.red);
+                Debug.DrawLine(transform.position, transform.position+finalForce*5, Color.green);
+            }
 
             return mass*(finalForce + inF);
         }
@@ -345,8 +361,10 @@ public class Agent : MonoBehaviour
         #endregion
 
         #region Leader Following
+        //to start leader following, go to AgentManager and switch leaderenabled = true
+
         public Agent leader;
-        bool hasLeader;
+        bool hasLeader = false, isLeader = false; 
 
         public void setLeader(Agent a) {
             hasLeader = true;
@@ -354,6 +372,9 @@ public class Agent : MonoBehaviour
         }
         public void removeLeader(Agent a) {
             hasLeader = false;
+        }
+        public void makeLeader() {
+            isLeader = true;
         }
         private Vector3 CalculateLeaderForce() {
             if(!hasLeader) {
@@ -383,7 +404,15 @@ public class Agent : MonoBehaviour
             */
 
             float dist = Math.Abs(posDif.magnitude) - radius - leader.radius;
-            float forceMult = -2 / dist + 1;
+            float forceMult = 2 / dist - 1;
+
+            //speed is still going too fast. let's artificially clamp the force if the velocity is too fast.
+            if(Vector3.Dot(rb.velocity, posDif.normalized) > 0.7f && forceMult > 0) {
+                return Vector3.zero;
+            }
+            if(Vector3.Dot(rb.velocity, posDif.normalized) < -0.7f && forceMult < 0) {
+                return Vector3.zero;
+            }
 
             return posDif.normalized * mass * forceMult;
         }

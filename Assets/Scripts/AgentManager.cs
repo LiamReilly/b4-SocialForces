@@ -19,6 +19,8 @@ public class AgentManager : MonoBehaviour
     private const int PATHFINDING_FRAME_SKIP = 25;
     private const float MASS = 80f;
 
+    public bool leaderEnabled = true;
+    
     public static AgentManager instance;
 
     #region Unity Functions
@@ -29,6 +31,31 @@ public class AgentManager : MonoBehaviour
         Random.InitState(0);
 
         agentParent = GameObject.Find("Agents");
+
+        Agent leader = null;
+        if(leaderEnabled) {
+            var randPos = new Vector3((Random.value - 0.5f) * agentSpawnRadius, 0, (Random.value - 0.5f) * agentSpawnRadius);
+
+            NavMeshHit hit;
+            NavMesh.SamplePosition(randPos, out hit, 10, NavMesh.AllAreas);
+            randPos = hit.position + Vector3.up;
+
+            GameObject agent = null;
+            agent = Instantiate(agentPrefab, randPos, Quaternion.identity);
+            agent.name = "Leader";
+            agent.transform.parent = agentParent.transform;
+            var agentScript = agent.GetComponent<Agent>();
+            agentScript.radius = 0.3f;// Random.Range(0.2f, 0.6f);
+            agentScript.mass = MASS;
+            agentScript.perceptionRadius = 3;
+
+            leader = agentScript;
+            agent.GetComponent<Renderer>().material.SetColor("_Color", Color.red);
+            leader.makeLeader();
+            agents.Add(agentScript);
+            agentsObjs.Add(agent, agentScript);
+        }
+
         for (int i = 0; i < agentCount; i++)
         {
             var randPos = new Vector3((Random.value - 0.5f) * agentSpawnRadius, 0, (Random.value - 0.5f) * agentSpawnRadius);
@@ -47,6 +74,9 @@ public class AgentManager : MonoBehaviour
 
             agents.Add(agentScript);
             agentsObjs.Add(agent, agentScript);
+
+            if(leaderEnabled)
+                agentScript.setLeader(leader);
         }
 
         StartCoroutine(Run());
